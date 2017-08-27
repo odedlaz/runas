@@ -46,7 +46,7 @@ std::string locatepath(const std::string &path, bool searchInPath) {
         }
     }
 
-    throw std::runtime_error("path not found");
+    throw std::runtime_error("path '" + path + "' not found");
 }
 
 std::string getpath(const std::string &path, bool searchInPath) {
