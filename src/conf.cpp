@@ -98,7 +98,7 @@ std::vector<User> &addUsers(const std::string &user, std::vector<User> &users) {
     return users;
 }
 
-void populate_permissions(std::smatch &matches, std::vector<ExecutablePermissions> &perms) {
+void Permissions::populate_permissions(std::smatch &matches) {
 
     // <user-or-group> -> <dest-user>:<dest-group> :: <path-to-executable-and-args>
     std::vector<User> users;
@@ -131,13 +131,15 @@ void populate_permissions(std::smatch &matches, std::vector<ExecutablePermission
     std::string args = matches[7];
 
     // if no args are passed, the user can execute *any* args
-    cmd += args.empty() ? ".*" : "\\s+" + args;
+    // we remove single quotes because these don't actually exists,
+    // the shell concatenates single-quoted-wrapped strings
+    cmd += args.empty() ? ".*" : "\\s+" + std::regex_replace(args, single_quote_re, "");
 
     std::regex cmd_re = std::regex(cmd);
 
     // populate the permissions vector
     for (User &user : users) {
-        perms.emplace_back(ExecutablePermissions(user, dest_user, dest_group, cmd_re));
+        _perms.emplace_back(ExecutablePermissions(user, dest_user, dest_group, cmd_re));
     }
 
 }
@@ -159,7 +161,7 @@ void Permissions::parse(std::string &line) {
             throw std::runtime_error("couldn't parse line");
         }
 
-        populate_permissions(matches, _perms);
+        populate_permissions(matches);
 
     } catch (std::exception &e) {
         std::stringstream ss;
@@ -167,6 +169,7 @@ void Permissions::parse(std::string &line) {
         throw std::runtime_error(ss.str());
     }
 }
+
 
 
 const bool ExecutablePermissions::cmdcmp(const std::string &cmd) const {

@@ -3,9 +3,10 @@
 #include <path.h>
 #include <version.h>
 
-int runas(const std::string &username, const std::string &grpname, const std::string &cmd, char *const cmdargs[]) {
+int runas(const std::string &username, const std::string &grpname, char *const cmdargv[]) {
 
     User running_user = User(getuid());
+    std::string cmd = cmdargv[0];
 
     // load destination_user and check that it exists
     User dest_user = User(username);
@@ -25,12 +26,12 @@ int runas(const std::string &username, const std::string &grpname, const std::st
 
     // check in the configuration if the destination user can run the command with the requested permissions
     if (!bypass_perms(running_user, dest_user, dest_group) &&
-        !hasperm(dest_user, dest_group, cmd, cmdargs)) {
+        !hasperm(dest_user, dest_group, cmdargv)) {
         std::stringstream ss;
         ss << "You can't execute '";
-        for (int i = 0; cmdargs[i] != nullptr; i++) {
-            std::string suffix = cmdargs[i + 1] != nullptr ? " " : "";
-            ss << cmdargs[i] << suffix;
+        for (int i = 0; cmdargv[i] != nullptr; i++) {
+            std::string suffix = cmdargv[i + 1] != nullptr ? " " : "";
+            ss << cmdargv[i] << suffix;
         }
         ss << "' as '" << dest_user.name() << ":" << dest_group.name()
            << "': " << std::strerror(EPERM);
@@ -44,7 +45,7 @@ int runas(const std::string &username, const std::string &grpname, const std::st
     setperm(dest_user, dest_group);
 
     // execute with uid and gid. path lookup is done internally, so execvp is not needed.
-    execv(cmd.c_str(), cmdargs);
+    execvp(cmdargv[0], &cmdargv[0]);
 
     // will not get here unless execvp failed
     throw std::runtime_error(cmd + " : " + std::strerror(errno));
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
         validate_runas_binary(getpath(argv[0], true));
 
         // load the arguments into a vector, then add a null at the end,
-        // because execvp needs a null pointer at the end of the argument array.
+        // to have an indication when the vector ends
         std::vector<char *> args{argv, argv + argc};
         args.emplace_back((char *) nullptr);
 
@@ -79,10 +80,11 @@ int main(int argc, char *argv[]) {
         // if <user>:<group> passed, update user string to <user>
         const std::string user = group.empty() ? perms : perms.substr(0, delimIdx);
 
-        // extract the cmd (try to locate the binary in $PATH)
-        const std::string cmd{getpath(args[2], true)};
+        std::string cmd = getpath(args[2], true);
+        args[2] = const_cast<char *>(cmd.c_str());
 
-        return runas(user, group, cmd, &args[2]);
+
+        return runas(user, group, &args[2]);
 
     } catch (std::exception &e) {
         std::cerr << e.what() << std::endl;

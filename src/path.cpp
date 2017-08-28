@@ -20,8 +20,8 @@ const std::string getcwd() {
 
 const std::string realpath(const std::string &path) {
     char buff[PATH_MAX] = {};
-    if (realpath(path.c_str(),buff) == nullptr) {
-       return path;
+    if (realpath(path.c_str(), buff) == nullptr) {
+        return path;
     }
     return std::string(buff);
 }

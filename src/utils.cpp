@@ -1,6 +1,5 @@
 #include <conf.h>
 #include <utils.h>
-#include <path.h>
 
 void validate_runas_binary(const std::string &path) {
     struct stat fstat{};
@@ -35,9 +34,11 @@ bool can_execute(const User &user, const Group &group, const std::string &cmd,
 
 }
 
-bool hasperm(User &user, Group &group, const std::string &cmd, char *const cmdargs[]) {
+bool hasperm(User &user, Group &group, char *const cmdargs[]) {
     Permissions config;
     std::string path = std::string(DEFAULT_CONFIG_PATH);
+    std::string cmd = cmdargs[0];
+
     config.load(path);
 
     struct stat fstat{};
@@ -45,7 +46,7 @@ bool hasperm(User &user, Group &group, const std::string &cmd, char *const cmdar
         throw std::runtime_error(cmd + " : " + std::strerror(errno));
     }
 
-    std::stringstream ss { cmd, std::ios_base::app | std::ios_base::out };
+    std::stringstream ss{cmd, std::ios_base::app | std::ios_base::out};
     for (int i = 1; cmdargs[i] != nullptr; i++) {
         ss << " " << cmdargs[i];
     }
@@ -57,7 +58,6 @@ bool hasperm(User &user, Group &group, const std::string &cmd, char *const cmdar
     }
     return false;
 }
-
 
 
 bool bypass_perms(User &running_user, User &dest_user, Group &dest_group) {
@@ -72,6 +72,3 @@ bool bypass_perms(User &running_user, User &dest_user, Group &dest_group) {
     return running_user.id() == dest_user.id() && running_user.gid() == dest_group.id();
 
 }
-
-
-

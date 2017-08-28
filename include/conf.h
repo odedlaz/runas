@@ -11,8 +11,8 @@ public:
     explicit ExecutablePermissions(User &user,
                                    User &dest_user,
                                    Group &dest_group, std::regex &cmd_re) : _user{user}, _dest_user{dest_user},
-                                                                               _dest_group{dest_group},
-                                                                               _cmd_re{cmd_re} {}
+                                                                            _dest_group{dest_group},
+                                                                            _cmd_re{cmd_re} {}
 
     const User user() const { return _user; };
 
@@ -40,16 +40,17 @@ public:
 
 private:
     std::vector<ExecutablePermissions> _perms = {};
-    std::regex line_re = std::regex(R"(^(%?[1-9a-zA-Z]+)\s->\s([1-9a-zA-Z]+)(:([1-9A-Za-z]+))?\s+::\s+([^\s]+)(\s([^\s].*[^\s])[\s]*)?$)");
-
+    std::regex line_re = std::regex(
+            R"(^(%?[1-9a-zA-Z]+)\s->\s([1-9a-zA-Z]+)(:([1-9A-Za-z]+))?\s+::\s+([^\s]+)(\s([^\s].*[^\s])[\s]*)?$)");
     std::regex comment_re = std::regex(R"(^[\t|\s]*#.*)");
     std::regex empty_re = std::regex(R"(^[\t|\s]*)");
-
+    std::regex single_quote_re = std::regex("'");
 
     bool exists(std::string &path) const;
 
     void create(std::string &path) const;
 
+    void populate_permissions(std::smatch &matches);
     void validate_permissions(std::string &path) const;
 
     void parse(std::string &line);
