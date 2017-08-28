@@ -31,7 +31,7 @@ $ runas root:root bash -c 'whoami && id'
 
 # allow odedlaz to run bash as root
 # notice we're adding '/usr/bin/bash' which is a symlink to '/bin/bash'
-$ echo "odedlaz -> root :: /usr/bin/bash" | sudo tee --append /etc/runas.conf
+$ echo "odedlaz -> root :: /usr/bin/bash -c 'whoami && id'" | sudo tee --append /etc/runas.conf
 [sudo] password for odedlaz:
 odedlaz -> root :: /usr/bin/bash
 
@@ -39,6 +39,33 @@ odedlaz -> root :: /usr/bin/bash
 $ runas root:root bash -c 'whoami && id'
 root
 uid=0(root) gid=0(root) groups=0(root)
+
+# but, we can't run anything else ->
+$ runas root:root bash -c id
+You can't execute '/bin/bash -c id' as 'root:root': Operation not permitted
+
+# if you want to run *any* argument, just pass the binary, without args.
+$ echo "odedlaz -> root :: /usr/bin/bash" | sudo tee --append /etc/runas.conf
+odedlaz -> root :: /usr/bin/bash
+
+# and now it'll work with *any* arguments. 
+$ runas root:root bash -c id
+uid=0(root) gid=0(root) groups=0(root)
+
+# command line arguments are compiled as a ECMAScript flavored regex
+# which allows fine-grained permission manipulation. for instance:
+$ echo "odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .*" | sudo tee --append /etc/runas.conf
+odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .* 
+
+# now a user can execute start, stop, restart and cat operations for any systemd unit. i.e:
+$ runas root systemctl cat docker
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target docker.socket firewalld.service
+Wants=network-online.target
+Requires=docker.socket
+...
 ```
 
 More examples can be found in the `runas.conf.example` file.
