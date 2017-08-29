@@ -83,7 +83,6 @@ int main(int argc, char *argv[]) {
         std::string cmd = getpath(args[2], true);
         args[2] = const_cast<char *>(cmd.c_str());
 
-
         return runas(user, group, &args[2]);
 
     } catch (std::exception &e) {
