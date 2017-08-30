@@ -44,8 +44,8 @@ private:
             R"(^(%?[1-9a-zA-Z]+)\s->\s([1-9a-zA-Z]+)(:([1-9A-Za-z]+))?\s+::\s+([^\s]+)(\s([^\s].*[^\s])[\s]*)?$)");
     std::regex comment_re = std::regex(R"(^[\t|\s]*#.*)");
     std::regex empty_re = std::regex(R"(^[\t|\s]*)");
-    // match ' but not \'
-    std::regex single_quote_re = std::regex(R"(\(?<!\\\)')");
+    // match ' or " but not \' and \"
+    std::regex quote_re = std::regex(R"(\(?<!\\\)('|"))");
 
     bool exists(std::string &path) const;
 

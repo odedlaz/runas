@@ -133,7 +133,8 @@ void Permissions::populate_permissions(std::smatch &matches) {
     // if no args are passed, the user can execute *any* args
     // we remove single quotes because these don't actually exists,
     // the shell concatenates single-quoted-wrapped strings
-    cmd += args.empty() ? ".*" : "\\s+" + std::regex_replace(args, single_quote_re, "");
+
+    cmd += args.empty() ? ".*" : "\\s+" + std::regex_replace(args, quote_re, "");
 
     std::regex cmd_re = std::regex(cmd);
 
