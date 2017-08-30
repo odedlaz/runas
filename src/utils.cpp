@@ -34,12 +34,9 @@ bool can_execute(const User &user, const Group &group, const std::string &cmd,
 
 }
 
-bool hasperm(User &user, Group &group, char *const cmdargs[]) {
-    Permissions config;
-    std::string path = std::string(DEFAULT_CONFIG_PATH);
-    std::string cmd = cmdargs[0];
+bool hasperm(const Permissions& permissions, User &user, Group &group, char *const cmdargs[]) {
 
-    config.load(path);
+    std::string cmd = cmdargs[0];
 
     struct stat fstat{};
     if (stat(DEFAULT_CONFIG_PATH, &fstat) != 0) {
@@ -51,7 +48,7 @@ bool hasperm(User &user, Group &group, char *const cmdargs[]) {
         ss << " " << cmdargs[i];
     }
 
-    for (const ExecutablePermissions &perm : config) {
+    for (const ExecutablePermissions &perm : permissions) {
         if (can_execute(user, group, ss.str(), perm)) {
             return true;
         }

@@ -3,7 +3,10 @@
 #include <path.h>
 #include <version.h>
 
-int runas(const std::string &username, const std::string &grpname, char *const cmdargv[]) {
+int runas(const Permissions &permissions,
+          const std::string &username,
+          const std::string &grpname,
+          char *const cmdargv[]) {
 
     User running_user = User(getuid());
     std::string cmd = cmdargv[0];
@@ -26,7 +29,7 @@ int runas(const std::string &username, const std::string &grpname, char *const c
 
     // check in the configuration if the destination user can run the command with the requested permissions
     if (!bypass_perms(running_user, dest_user, dest_group) &&
-        !hasperm(dest_user, dest_group, cmdargv)) {
+        !hasperm(permissions, dest_user, dest_group, cmdargv)) {
         std::stringstream ss;
         ss << "You can't execute '";
         for (int i = 0; cmdargv[i] != nullptr; i++) {
@@ -65,6 +68,11 @@ int main(int argc, char *argv[]) {
         // i.e: suid is set and owned by root:root
         validate_runas_binary(getpath(argv[0], true));
 
+        // load the configuration from the default path
+        Permissions permissions;
+        std::string config_path = DEFAULT_CONFIG_PATH;
+        permissions.load(config_path);
+
         // load the arguments into a vector, then add a null at the end,
         // to have an indication when the vector ends
         std::vector<char *> args{argv, argv + argc};
@@ -83,7 +91,7 @@ int main(int argc, char *argv[]) {
         std::string cmd = getpath(args[2], true);
         args[2] = const_cast<char *>(cmd.c_str());
 
-        return runas(user, group, &args[2]);
+        return runas(permissions, user, group, &args[2]);
 
     } catch (std::exception &e) {
         std::cerr << e.what() << std::endl;

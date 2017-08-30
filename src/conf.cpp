@@ -57,15 +57,15 @@ bool Permissions::exists(std::string &path) const {
 }
 
 void Permissions::load(std::string &path) {
-    // check that the permissions file has the right
-    // ownership and permissions
-    validate_permissions(path);
-
-    // create the file if it doesn't exist, and set the right
-    // ownership and permission bits
+    // create the file if it doesn't exist,
+    // and set the right ownership and permission bits.
     if (!exists(path)) {
         create(path);
     }
+
+    // check that the configurations file has the right
+    // ownership and permissions
+    validate_permissions(path);
 
     // parse each line in the configuration file
     std::ifstream f(path);
