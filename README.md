@@ -2,62 +2,139 @@
 
 A tool that runs a binary in a non-interactive session, with different permissions.
 
-# Why
+# Motivation
 
-Think about the following scenario:
+You must be thinking that I'm re-inventing the wheel. Well, I'm not.  
+Let look at the following scenario:
 - You have a binary you want to run in a non-interactive session.
 - You want the binary to run with different permissions then the current user
-- You don't want the user to be able to run *any binary* with *any permission*, only the one you want
-- You don't want a child process to get created, because that can create TTY and signaling issues.
+- You don't want the user to be able to run *any binary* with *any permissions*,  
+  only the one you want, with the requested user / group.
+- You don't want a child process to get created, because you want to run the binary  
+  as part of a filter or avoid TTY and signaling issues.
 
+A good example would be to debug an elevated app, while running your editor regularly.  
+You need to run [gdb](https://www.gnu.org/software/gdb/) and your target binary as root.
 
-`sudo` and `su` execute the target binary as a child, which causes signaling issues.
-`sudo` is somewhat complex to configure, and problematic when all you need is to "run this specific binary with these specific permissions and get out of the pipeline".
+You probably don't want to turn on [**S**et owner **U**ser **ID**](https://www.linux.com/blog/what-suid-and-how-set-suid-linuxunix) because that's a major security hole.
+
+`sudo` and `su` execute the target binary as a child, which causes signaling issues.  
+furthermore, when working with an external tool, an IDE for example, both are not an option.
+
+`sudo` is also somewhat complex to configure, and honestly, I prefer to avoid using it alltogether.
 
 ## Solution
 
-A tool that is easy to set up, and does the most minimal thing possible -> run a binary with requested permissions and gets out of the way:
+A tool that is easy to configure & runs the target app with requested owner:group.
+[runas](https://github.com/odedlaz/runas) is that tool. It does one thing, and (hopefully) does it well.
 
+`runas` doesn't have any complicated flags or knobs.
 
 ```console
 $ runas
 Usage: bin/runas user-spec command [args]
 
-version: 0.1, license: MIT
+version: 0.1.2, license: MIT
+```
 
-# try to run bash as root as 'odedlaz'
+It just lets you run binaries:
+
+```console
 $ runas root:root bash -c 'whoami && id'
-'odedlaz' can't run 'bash -c whoami && id' as 'root:root': Operation not permitted
+You can't execute '/bin/bash -c whoami && id' as 'root:root': Operation not permitted
+```
 
-# allow odedlaz to run bash as root
-# notice we're adding '/usr/bin/bash' which is a symlink to '/bin/bash'
+But you need need the proper permissions to do so.
+
+```console
 $ echo "odedlaz -> root :: /usr/bin/bash -c 'whoami && id'" | sudo tee --append /etc/runas.conf
 [sudo] password for odedlaz:
 odedlaz -> root :: /usr/bin/bash
+```
 
-# and finally, let's try to run bash as root...
+Notice I added `/usr/bin/bash` which is linked to `/bin/bash`.  
+`runas` follows links to their source, to make sure the right binary is called.
+It also mimics the same way a user would enter a command in the shell.
+
+For instance, `'whoami && id'` is concatenated by the shell into one argument.  
+[runas](https://github.com/odedlaz/runas) makes sure you don't have to think about the way things get parsed.
+
+Anyway, now the command works:
+
+```console
 $ runas root:root bash -c 'whoami && id'
 root
 uid=0(root) gid=0(root) groups=0(root)
+```
 
-# but, we can't run anything else ->
+## "Advanced" Examples
+
+What if you want to allow the user to use *any* argument for a given binary?  
+The previous configuration only allows me to run `bash -c 'whoami && id`.
+
+```console
 $ runas root:root bash -c id
 You can't execute '/bin/bash -c id' as 'root:root': Operation not permitted
+```
 
-# if you want to run *any* argument, just pass the binary, without args.
+You don't need to think to much. The configuration is really easy:  
+```console
 $ echo "odedlaz -> root :: /usr/bin/bash" | sudo tee --append /etc/runas.conf
+[sudo] password for odedlaz:
 odedlaz -> root :: /usr/bin/bash
+```
 
-# and now it'll work with *any* arguments. 
+And now the previous, and any argument passed to bash will work:
+```
+$ runas root:root bash -c id
+uid=0(root) gid=0(root) groups=0(root)
+```
+
+You can also lock the user to only run `bash -c` commands.  
+Delete the previous command, and add the following:
+```console
+$ echo 'odedlaz -> root :: /usr/bin/bash -c .*' | sudo tee --append /etc/runas.conf
+[sudo] password for odedlaz:
+odedlaz -> root :: /usr/bin/bash -c .*
+```
+
+And now the user can run any argument that begins with `-c`, but nothing else:
+```console
 $ runas root:root bash -c id
 uid=0(root) gid=0(root) groups=0(root)
 
-# command line arguments are compiled as a ECMAScript flavored regex
-# which allows fine-grained permission manipulation. for instance:
-$ echo "odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .*" | sudo tee --append /etc/runas.conf
-odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .* 
+$ runas root:root bash
+You can't execute '/bin/bash' as 'root:root': Operation not permitted
+```
 
-# now a user can execute start, stop, restart and cat operations for any systemd unit. i.e:
+### Group permissions
+
+What if you want to allow a specific group members to run a command?  
+
+Again, you don't need to think to much. The configuration is really easy:  
+
+```console
+$ echo "%docker -> root :: /bin/systemctl restart docker" | sudo tee --append /etc/runas.conf
+[sudo] password for odedlaz:
+%docker -> root :: /bin/systemctl restart docker
+```
+
+And now any member of the docker group can run restart the docker daemon!
+
+### Fine-grained permissions
+
+[runas](https://github.com/odedlaz/runas) uses c++ 14, which comes with a built-in [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript) flavored [regex](/2017/03/07/master-regular-expressions/) library.  
+Using regular expressions can be really helpful when you want to allow the user to run just a subset of commands.  
+
+A good example would be to allow the user to run only "readonly" operations on systemd units:
+```console
+$ echo "odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .*" | sudo tee --append /etc/runas.conf
+[sudo] password for odedlaz:
+odedlaz -> root :: /bin/systemctl (start|stop|restart|cat) .*
+```
+
+Now the user doesn't need root permissions to perform `start`, `stop`, `restat` and `cat` operations:
+```console
 $ runas root systemctl cat docker
 [Unit]
 Description=Docker Application Container Engine
@@ -67,9 +144,6 @@ Wants=network-online.target
 Requires=docker.socket
 ...
 ```
-
-More examples can be found in the `runas.conf.example` file.
-
 ## Build
 
 The following steps are needed to install:
@@ -88,10 +162,9 @@ The configuration file contains lines in the following format:
 ```
 <ORIGIN-USER-OR-GROUP> -> <DEST-USER>:<DEST-GROUP> :: <PATH-TO-EXECUTABLE> <EXECUTABLE-ARGS>
 ```
-
-- A group is specified by adding `%` at the beginning of the row.
-- A destination group is not mandatory. One is inferred from the supplied destination user.
-- Executable path is canonicalized (like readlink -f) and are validated
+### Notes
+- A destination group is not mandatory. One is inferred from the destination user.
+- Executable paths are canonicalized (like readlink -f) and validated.
 - Executable args are not mandatory. If supplied, they are validated as well.
   - The argument string is compiled as an [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript) flavored regex.  
     if no arguments are added, *any* command args are allowed.
@@ -108,10 +181,15 @@ Follow the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy). Spe
 - Store data in flat text files.
 
 If you have any issues or suggestions -> feel free to open an [issue](https://github.com/odedlaz/runas/issues) or send a [pull request](https://github.com/odedlaz/runas/pulls)!
+## Why reinvent gosu?
 
-### Why reinvent gosu?
+[gosu](https://github.com/tianon/gosu) is a tool that was invented to solve TTY & signaling issues, mainly for containers.  
+As I said before, `sudo` and `su` run the target process as a child, which means all signals are passed to them, and sometimes aren't forwarded propely.   
+`gosu` solves that issue, but doesn't provide a permissions mechanism which makes it practically impossible to use on regular systems that need an extra layer security.
 
-This does more or less exactly the same thing as [gosu](https://github.com/tianon/gosu), except that:
-1. It adds a [much needed] permissions mechanism
-2. The entire binary weighs 200kb, and ~60kb with [UPX](https://upx.github.io)
-3. It was a fun exercise :)
+`gosu` is also written in Go, which is notoriously known for creating *really* big binaries:  
+- 1.23MB for the amd64 release
+- 1.1MB for the i386 release
+
+
+[runas](https://github.com/odedlaz/runas)'s binary takes only 200KB unpacked, and ~60KB when packed with [UPX](https://upx.github.io).
