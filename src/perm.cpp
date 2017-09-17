@@ -3,7 +3,6 @@
 #include <vector>
 #include <sstream>
 
-
 int setgroups(User &user, Group &grp) {
     // walk through all the groups that a user has and set them
     int ngroups = 0;

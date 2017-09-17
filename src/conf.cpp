@@ -1,8 +1,7 @@
+#include <logger.h>
 #include <conf.h>
-#include <fstream>
-#include <unistd.h>
 #include <path.h>
-
+#include <zconf.h>
 
 void Permissions::validate_permissions(std::string &path) const {
     struct stat fstat{};
@@ -23,7 +22,6 @@ void Permissions::validate_permissions(std::string &path) const {
         throw std::runtime_error(ss.str());
     }
 }
-
 
 const std::vector<ExecutablePermissions>::const_iterator Permissions::begin() const {
     return _perms.cbegin();
@@ -100,7 +98,8 @@ std::vector<User> &addUsers(const std::string &user, std::vector<User> &users) {
 
 void Permissions::populate_permissions(std::smatch &matches) {
 
-    // <user-or-group> -> <dest-user>:<dest-group> :: <path-to-executable-and-args>
+    // <user-or-group> -> <dest-user>:<dest-group> ::
+    // <path-to-executable-and-args>
     std::vector<User> users;
 
     // first match is a user or group this line refers to
@@ -134,44 +133,50 @@ void Permissions::populate_permissions(std::smatch &matches) {
     // we remove single quotes because these don't actually exists,
     // the shell concatenates single-quoted-wrapped strings
 
-    cmd += args.empty() ? ".*" : "\\s+" + std::regex_replace(args, quote_re, "");
+    if (!args.empty()) {
+        // the regex is reversed because c++11 doesn't support negative lookbehind.
+        // instead, the regex has been reversed to look ahead.
+        // this whole thing isn't too costly because the lines are short.
+        std::reverse(args.begin(), args.end());
+        args = std::regex_replace(args, quote_re, "");
+        std::reverse(args.begin(), args.end());
+    }
 
+    cmd += args.empty() ? ".*" : "\\s+" + args;
+
+    logger::debug << "command is: " << cmd << std::endl;
     std::regex cmd_re = std::regex(cmd);
 
     // populate the permissions vector
     for (User &user : users) {
         _perms.emplace_back(ExecutablePermissions(user, dest_user, dest_group, cmd_re));
     }
-
 }
 
 void Permissions::parse(std::string &line) {
 
-    try {
-        std::smatch matches;
-        if (std::regex_match(line, matches, comment_re)) {
-            //  a comment, no need to parse
-            return;
-        }
+    std::smatch matches;
+    //  a comment, no need to parse
+    if (std::regex_match(line, matches, comment_re)) {
+        return;
+    }
 
-        if (std::regex_match(line, matches, empty_re)) {
-            //  an empty line, no need to parse
-            return;
-        }
+    //  an empty line, no need to parse
+    if (std::regex_match(line, matches, empty_re)) {
+        return;
+    }
+
+    logger::debug << "parsing line: " << line << std::endl;
+    try {
         if (!std::regex_search(line, matches, line_re)) {
             throw std::runtime_error("couldn't parse line");
         }
-
         populate_permissions(matches);
 
     } catch (std::exception &e) {
-        std::stringstream ss;
-        ss << "config error - " << e.what() << " [" << line << "]";
-        throw std::runtime_error(ss.str());
+        logger::error << "config error, skipping - " << e.what() << " [" << line << "]" << std::endl;
     }
 }
-
-
 
 const bool ExecutablePermissions::cmdcmp(const std::string &cmd) const {
     std::smatch matches;

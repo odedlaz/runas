@@ -1,6 +1,6 @@
 #pragma once
 
-#include "perm.h"
+#include <perm.h>
 #include <iostream>
 #include <regex>
 
@@ -29,7 +29,6 @@ private:
     std::regex _cmd_re;
 };
 
-// ^(%?[1-9a-zA-Z]+)\s->\s([1-9a-zA-Z]+)(:([1-9A-Za-z]+))?\s+::\s+([^\s]+)(\s([^\s].*\w)[\s]*)?$
 class Permissions {
 public:
     void load(std::string &path);
@@ -44,14 +43,17 @@ private:
             R"(^(%?[1-9a-zA-Z]+)\s->\s([1-9a-zA-Z]+)(:([1-9A-Za-z]+))?\s+::\s+([^\s]+)(\s([^\s].*[^\s])[\s]*)?$)");
     std::regex comment_re = std::regex(R"(^[\t|\s]*#.*)");
     std::regex empty_re = std::regex(R"(^[\t|\s]*)");
+
     // match ' or " but not \' and \"
-    std::regex quote_re = std::regex(R"(\(?<!\\\)('|"))");
+    // if that looks weird, a full explanation in the cpp file
+    std::regex quote_re = std::regex(R"(('|")(?!\\))");
 
     bool exists(std::string &path) const;
 
     void create(std::string &path) const;
 
     void populate_permissions(std::smatch &matches);
+
     void validate_permissions(std::string &path) const;
 
     void parse(std::string &line);

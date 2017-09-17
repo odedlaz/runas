@@ -1,5 +1,5 @@
-#include <conf.h>
 #include <utils.h>
+#include <iomanip>
 
 void validate_runas_binary(const std::string &path) {
     struct stat fstat{};
@@ -34,7 +34,7 @@ bool can_execute(const User &user, const Group &group, const std::string &cmd,
 
 }
 
-bool hasperm(const Permissions& permissions, User &user, Group &group, char *const cmdargs[]) {
+bool hasperm(const Permissions &permissions, User &user, Group &group, char *const cmdargs[]) {
 
     std::string cmd = cmdargs[0];
 
@@ -65,7 +65,24 @@ bool bypass_perms(User &running_user, User &dest_user, Group &dest_group) {
     }
 
     // if the user / grp are the same as the running user,
-    // just run the app without performing any runas
+    // just run the app without performing any operations
     return running_user.id() == dest_user.id() && running_user.gid() == dest_group.id();
 
+}
+
+
+const std::string iso8601() {
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
+
+const std::string toString(char *txt) {
+    if (txt == nullptr) {
+        return "";
+    }
+    return std::string(txt);
 }

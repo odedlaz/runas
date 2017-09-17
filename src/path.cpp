@@ -1,10 +1,8 @@
 #include <zconf.h>
 #include <sys/stat.h>
-#include <stdexcept>
 #include <cstring>
 #include <fstream>
 #include <sstream>
-
 
 bool path_exists(const std::string &path) {
     std::ifstream f(path);

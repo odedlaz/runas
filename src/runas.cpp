@@ -2,6 +2,7 @@
 #include <utils.h>
 #include <path.h>
 #include <version.h>
+#include <logger.h>
 
 int runas(const Permissions &permissions,
           const std::string &username,
@@ -94,6 +95,7 @@ int main(int argc, char *argv[]) {
         return runas(permissions, user, group, &args[2]);
 
     } catch (std::exception &e) {
+        logger::error << e.what() << std::endl;
         std::cerr << e.what() << std::endl;
         return 1;
     }

@@ -1,12 +1,14 @@
 #pragma once
 
-#include <pwd.h>
 #include <string>
+#include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
 
 class User {
 public:
+    explicit User() = default;
+
     explicit User(uid_t uid);
 
     explicit User(const std::string &user);
@@ -23,8 +25,8 @@ public:
 
 private:
     std::string _pw_name;
-    uid_t _pw_uid;
-    gid_t _pw_gid;
+    uid_t _pw_uid{};
+    gid_t _pw_gid{};
     std::string _pw_dir;
 };
 
