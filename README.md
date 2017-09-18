@@ -30,7 +30,7 @@ A tool that is easy to configure & runs the target binary with requested owner:g
 $ runas
 Usage: bin/runas user-spec command [args]
 
-version: 0.1.2, license: MIT
+version: 0.1.3, license: MIT
 ```
 
 It just lets you run binaries:  
