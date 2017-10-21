@@ -2,6 +2,8 @@
 
 A tool that runs a binary in a non-interactive session, with different permissions.
 
+# Project Status
+This project is now unmaintained. Its successor, doas, is being [actively developed](https://github.com/odedlaz/doas).   
 # Motivation
 
 You must be thinking that I'm re-inventing the wheel. Well, I'm not. Let look at the following scenario:  
